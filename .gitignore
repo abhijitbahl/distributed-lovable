@@ -1,0 +1,31 @@
+# Secrets / env files
+.env
+*.env
+!*.env.example
+
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+
+/node_modules
+/dist
+/build
+*.jar
+*.war

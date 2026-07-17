@@ -1,0 +1,2 @@
+com.projects.distributed_lovable.common_lib.security.SharedSecurityAutoConfiguration
+com.projects.distributed_lovable.common_lib.error.SharedExceptionAutoConfiguration
