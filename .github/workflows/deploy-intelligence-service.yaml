@@ -1,4 +1,4 @@
-name: Deploy Account Service
+name: Deploy Intelligence Service
 
 on:
   push:

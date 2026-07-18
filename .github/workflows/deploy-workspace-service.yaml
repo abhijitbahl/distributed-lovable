@@ -1,4 +1,4 @@
-name: Deploy Account Service
+name: Deploy Workspace Service
 
 on:
   push:
