@@ -45,7 +45,14 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
     @PreAuthorize("@security.canViewProjectMembers(#projectId)")
     public List<MemberResponse> getProjectMembers(Long projectId) {
         return projectMemberRepository.findByIdProjectId(projectId).stream()
-                .map(projectMemberMapper::toProjectMemberResponseFromMember).toList();
+                .map(projectMemberMapper::toProjectMemberResponseFromMember)
+                .map(this::enrichWithUsername).toList();
+    }
+
+    private MemberResponse enrichWithUsername(MemberResponse response) {
+        UserDto user = accountClient.getUserById(response.userId());
+        return new MemberResponse(response.userId(), user.username(), response.name(), response.projectRole(),
+                response.invitedAt());
     }
 
     @Override
