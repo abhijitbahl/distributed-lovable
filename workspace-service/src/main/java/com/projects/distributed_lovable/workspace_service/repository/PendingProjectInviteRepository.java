@@ -10,4 +10,6 @@ public interface PendingProjectInviteRepository extends JpaRepository<PendingPro
 
     List<PendingProjectInvite> findByEmailIgnoreCase(String email);
 
+    boolean existsByProjectIdAndEmailIgnoreCase(Long projectId, String email);
+
 }

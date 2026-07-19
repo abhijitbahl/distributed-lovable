@@ -9,6 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.projects.distributed_lovable.account_service.client.WorkspaceClient;
 import com.projects.distributed_lovable.account_service.dto.auth.AuthResponse;
 import com.projects.distributed_lovable.account_service.dto.auth.LoginRequest;
 import com.projects.distributed_lovable.account_service.dto.auth.SignupRequest;
@@ -38,6 +39,7 @@ public class AuthServiceImpl implements AuthService {
     AuthUtil authUtil;
     AuthenticationManager authenticationManager;
     KafkaTemplate<String, Object> kafkaTemplate;
+    WorkspaceClient workspaceClient;
 
     @Override
     public AuthResponse signup(SignupRequest request) {
@@ -47,6 +49,15 @@ public class AuthServiceImpl implements AuthService {
         User user = userMapper.toEntity(request);
         user.setPassword(passwordEncoder.encode(request.password()));
         userRepository.save(user);
+
+        // Best-effort synchronous resolution so the user sees any invited
+        // projects immediately; the Kafka event below is the fallback in
+        // case this call fails (e.g. a transient network issue).
+        try {
+            workspaceClient.resolvePendingInvites(user.getId(), user.getUsername());
+        } catch (Exception e) {
+            log.warn("Failed to resolve pending invites synchronously for {}, relying on async event", user.getUsername(), e);
+        }
 
         kafkaTemplate.send("user-signed-up-event", new UserSignedUpEvent(user.getId(), user.getUsername()));
 

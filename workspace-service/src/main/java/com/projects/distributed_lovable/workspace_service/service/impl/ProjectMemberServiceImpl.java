@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import com.projects.distributed_lovable.common_lib.dto.UserDto;
 import com.projects.distributed_lovable.common_lib.security.AuthUtil;
+import com.projects.distributed_lovable.common_lib.util.EmailNormalizer;
 import com.projects.distributed_lovable.workspace_service.client.AccountClient;
 import com.projects.distributed_lovable.workspace_service.dto.member.InviteMemberRequest;
 import com.projects.distributed_lovable.workspace_service.dto.member.MemberResponse;
@@ -67,13 +68,16 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
 
         Optional<UserDto> invitee = accountClient.getUserByEmail(request.username());
         if (invitee.isEmpty()) {
-            PendingProjectInvite pendingInvite = PendingProjectInvite.builder()
-                    .project(project)
-                    .email(request.username())
-                    .projectRole(request.role())
-                    .invitedAt(Instant.now())
-                    .build();
-            pendingProjectInviteRepository.save(pendingInvite);
+            String normalizedEmail = EmailNormalizer.normalize(request.username());
+            if (!pendingProjectInviteRepository.existsByProjectIdAndEmailIgnoreCase(projectId, normalizedEmail)) {
+                PendingProjectInvite pendingInvite = PendingProjectInvite.builder()
+                        .project(project)
+                        .email(normalizedEmail)
+                        .projectRole(request.role())
+                        .invitedAt(Instant.now())
+                        .build();
+                pendingProjectInviteRepository.save(pendingInvite);
+            }
             emailService.sendProjectInviteEmail(request.username(), project.getName(), false);
             return null;
         }
@@ -127,6 +131,29 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
         }
 
         projectMemberRepository.deleteById(projectMemberId);
+    }
+
+    @Override
+    public void resolvePendingInvites(Long userId, String email) {
+        String normalizedEmail = EmailNormalizer.normalize(email);
+        List<PendingProjectInvite> pendingInvites = pendingProjectInviteRepository
+                .findByEmailIgnoreCase(normalizedEmail);
+
+        for (PendingProjectInvite pendingInvite : pendingInvites) {
+            ProjectMemberId projectMemberId = new ProjectMemberId(pendingInvite.getProject().getId(), userId);
+            if (!projectMemberRepository.existsById(projectMemberId)) {
+                ProjectMember projectMember = ProjectMember.builder()
+                        .id(projectMemberId)
+                        .project(pendingInvite.getProject())
+                        .projectRole(pendingInvite.getProjectRole())
+                        .invitedAt(Instant.now())
+                        .build();
+                projectMemberRepository.save(projectMember);
+                log.info("Resolved pending invite for {} on project {}", email, pendingInvite.getProject().getId());
+            }
+        }
+
+        pendingProjectInviteRepository.deleteAll(pendingInvites);
     }
 
     // INTERNAL METHODS

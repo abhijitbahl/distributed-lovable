@@ -16,4 +16,6 @@ public interface ProjectMemberService {
 
     void removeProjectMember(Long projectId, Long memberId);
 
+    void resolvePendingInvites(Long userId, String email);
+
 }
