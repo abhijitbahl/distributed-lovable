@@ -1,0 +1,20 @@
+# cert-manager's HTTP-01 solver pods aren't covered by allow-nginx-ingress
+# (which only allows app in api-gateway/lovable-me-proxy/lovable-frontend),
+# so the ingress-nginx controller can't reach them to complete ACME
+# challenges. This adds a matching allow for the solver pods specifically.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-nginx-ingress-to-acme-solver
+  namespace: lovable-core
+spec:
+  podSelector:
+    matchLabels:
+      acme.cert-manager.io/http01-solver: "true"
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+  policyTypes:
+    - Ingress

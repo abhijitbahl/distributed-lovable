@@ -1,0 +1,30 @@
+# GKE Autopilot blocks writes to kube-system ("managed-namespaces-limitation"),
+# but cert-manager's stock manifest defaults leader election to kube-system.
+# The controller/cainjector Deployments are patched to use --leader-election-namespace=cert-manager;
+# this grants the matching lease permissions in that namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cert-manager-leaderelection
+  namespace: cert-manager
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cert-manager-leaderelection
+  namespace: cert-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cert-manager-leaderelection
+subjects:
+  - kind: ServiceAccount
+    name: cert-manager
+    namespace: cert-manager
+  - kind: ServiceAccount
+    name: cert-manager-cainjector
+    namespace: cert-manager

@@ -6,8 +6,18 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   ingressClassName: "nginx"
+  tls:
+    # HTTP-01 challenges can't cover the *.previews wildcard host, so it
+    # stays on plain HTTP for now; the other three hosts get real certs.
+    - hosts:
+        - lovableclone.in
+        - www.lovableclone.in
+        - api.lovableclone.in
+      secretName: lovableclone-tls
   rules:
   # 1. Main Website Route (The Frontend!)
   - host: "lovableclone.in"
