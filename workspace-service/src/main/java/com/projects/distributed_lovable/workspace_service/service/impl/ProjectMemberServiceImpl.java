@@ -13,10 +13,12 @@ import com.projects.distributed_lovable.workspace_service.client.AccountClient;
 import com.projects.distributed_lovable.workspace_service.dto.member.InviteMemberRequest;
 import com.projects.distributed_lovable.workspace_service.dto.member.MemberResponse;
 import com.projects.distributed_lovable.workspace_service.dto.member.UpdateMemberRoleRequest;
+import com.projects.distributed_lovable.workspace_service.entity.PendingProjectInvite;
 import com.projects.distributed_lovable.workspace_service.entity.Project;
 import com.projects.distributed_lovable.workspace_service.entity.ProjectMember;
 import com.projects.distributed_lovable.workspace_service.entity.ProjectMemberId;
 import com.projects.distributed_lovable.workspace_service.mapper.ProjectMemberMapper;
+import com.projects.distributed_lovable.workspace_service.repository.PendingProjectInviteRepository;
 import com.projects.distributed_lovable.workspace_service.repository.ProjectMemberRepository;
 import com.projects.distributed_lovable.workspace_service.repository.ProjectRepository;
 import com.projects.distributed_lovable.workspace_service.service.EmailService;
@@ -36,6 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ProjectMemberServiceImpl implements ProjectMemberService {
 
     ProjectMemberRepository projectMemberRepository;
+    PendingProjectInviteRepository pendingProjectInviteRepository;
     ProjectRepository projectRepository;
     ProjectMemberMapper projectMemberMapper;
     AuthUtil authUtil;
@@ -64,6 +67,13 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
 
         Optional<UserDto> invitee = accountClient.getUserByEmail(request.username());
         if (invitee.isEmpty()) {
+            PendingProjectInvite pendingInvite = PendingProjectInvite.builder()
+                    .project(project)
+                    .email(request.username())
+                    .projectRole(request.role())
+                    .invitedAt(Instant.now())
+                    .build();
+            pendingProjectInviteRepository.save(pendingInvite);
             emailService.sendProjectInviteEmail(request.username(), project.getName(), false);
             return null;
         }

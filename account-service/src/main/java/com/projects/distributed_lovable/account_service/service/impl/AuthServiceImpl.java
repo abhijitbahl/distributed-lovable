@@ -2,6 +2,7 @@ package com.projects.distributed_lovable.account_service.service.impl;
 
 import java.util.ArrayList;
 
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -16,6 +17,7 @@ import com.projects.distributed_lovable.account_service.mapper.UserMapper;
 import com.projects.distributed_lovable.account_service.repository.UserRepository;
 import com.projects.distributed_lovable.account_service.service.AuthService;
 import com.projects.distributed_lovable.common_lib.error.BadRequestException;
+import com.projects.distributed_lovable.common_lib.event.UserSignedUpEvent;
 import com.projects.distributed_lovable.common_lib.security.AuthUtil;
 import com.projects.distributed_lovable.common_lib.security.JwtUserPrincipal;
 
@@ -35,6 +37,7 @@ public class AuthServiceImpl implements AuthService {
     PasswordEncoder passwordEncoder;
     AuthUtil authUtil;
     AuthenticationManager authenticationManager;
+    KafkaTemplate<String, Object> kafkaTemplate;
 
     @Override
     public AuthResponse signup(SignupRequest request) {
@@ -44,6 +47,8 @@ public class AuthServiceImpl implements AuthService {
         User user = userMapper.toEntity(request);
         user.setPassword(passwordEncoder.encode(request.password()));
         userRepository.save(user);
+
+        kafkaTemplate.send("user-signed-up-event", new UserSignedUpEvent(user.getId(), user.getUsername()));
 
         JwtUserPrincipal jwtUserPrincipal = new JwtUserPrincipal(user.getId(), user.getName(), user.getUsername(), null,
                 new ArrayList<>());
