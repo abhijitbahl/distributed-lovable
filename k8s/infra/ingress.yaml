@@ -11,13 +11,16 @@ metadata:
 spec:
   ingressClassName: "nginx"
   tls:
-    # HTTP-01 challenges can't cover the *.previews wildcard host, so it
-    # stays on plain HTTP for now; the other three hosts get real certs.
     - hosts:
         - lovableclone.in
         - www.lovableclone.in
         - api.lovableclone.in
       secretName: lovableclone-tls
+    # Issued via the GoDaddy DNS-01 solver (selector-scoped in the
+    # ClusterIssuer), since HTTP-01 can't cover a wildcard host.
+    - hosts:
+        - "*.previews.lovableclone.in"
+      secretName: previews-lovableclone-wildcard-tls
   rules:
   # 1. Main Website Route (The Frontend!)
   - host: "lovableclone.in"

@@ -12,3 +12,19 @@ spec:
       - http01:
           ingress:
             ingressClassName: nginx
+      # The *.previews wildcard can't use HTTP-01, so it's routed to the
+      # GoDaddy DNS-01 webhook instead via this selector.
+      - selector:
+          dnsNames:
+            - "*.previews.lovableclone.in"
+        dns01:
+          webhook:
+            groupName: acme.lovableclone.in
+            solverName: godaddy
+            config:
+              apiKeySecretRef:
+                name: godaddy-api-key-prod
+                key: key
+                secret: secret
+              production: true
+              ttl: 600
