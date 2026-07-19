@@ -2,13 +2,12 @@ package com.projects.distributed_lovable.workspace_service.service.impl;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
-import org.apache.hc.core5.http.RequestNotExecutedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import com.projects.distributed_lovable.common_lib.dto.UserDto;
-import com.projects.distributed_lovable.common_lib.error.ResourceNotFoundException;
 import com.projects.distributed_lovable.common_lib.security.AuthUtil;
 import com.projects.distributed_lovable.workspace_service.client.AccountClient;
 import com.projects.distributed_lovable.workspace_service.dto.member.InviteMemberRequest;
@@ -20,6 +19,7 @@ import com.projects.distributed_lovable.workspace_service.entity.ProjectMemberId
 import com.projects.distributed_lovable.workspace_service.mapper.ProjectMemberMapper;
 import com.projects.distributed_lovable.workspace_service.repository.ProjectMemberRepository;
 import com.projects.distributed_lovable.workspace_service.repository.ProjectRepository;
+import com.projects.distributed_lovable.workspace_service.service.EmailService;
 import com.projects.distributed_lovable.workspace_service.service.ProjectMemberService;
 
 import jakarta.transaction.Transactional;
@@ -40,6 +40,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
     ProjectMemberMapper projectMemberMapper;
     AuthUtil authUtil;
     AccountClient accountClient;
+    EmailService emailService;
 
     @Override
     @PreAuthorize("@security.canViewProjectMembers(#projectId)")
@@ -61,12 +62,17 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
         Long userId = authUtil.getCurrentUserId();
         Project project = findAccessibleProjectById(projectId, userId);
 
-        UserDto invitee = accountClient.getUserByEmail(request.username()).orElseThrow(()-> new ResourceNotFoundException("User", request.username()));
-        if (invitee.id().equals(userId)) {
+        Optional<UserDto> invitee = accountClient.getUserByEmail(request.username());
+        if (invitee.isEmpty()) {
+            emailService.sendProjectInviteEmail(request.username(), project.getName(), false);
+            return null;
+        }
+
+        if (invitee.get().id().equals(userId)) {
             throw new RuntimeException("Cannot invite yourself");
         }
 
-        ProjectMemberId projectMemberId = new ProjectMemberId(projectId, invitee.id());
+        ProjectMemberId projectMemberId = new ProjectMemberId(projectId, invitee.get().id());
         if (projectMemberRepository.existsById(projectMemberId)) {
             throw new RuntimeException("Cannot invite them again!");
         }
@@ -79,6 +85,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
                 .build();
 
         projectMemberRepository.save(projectMember);
+        emailService.sendProjectInviteEmail(request.username(), project.getName(), true);
         return projectMemberMapper.toProjectMemberResponseFromMember(projectMember);
 
     }
