@@ -66,9 +66,35 @@ service discovery.
 - **Asynchronous (Kafka)**: for events that shouldn't block the caller —
   e.g. `account-service` publishes `UserSignedUpEvent` on signup, which
   `workspace-service` consumes to auto-resolve any pending project invites for
-  that email into real memberships. File-save requests between services also
-  flow through Kafka with a request/response event pair and idempotency
-  tracking.
+  that email into real memberships (see [Saga pattern](#saga-pattern-ai-generated-file-writes)
+  below for the file-write flow specifically).
+
+## Saga pattern: AI-generated file writes
+
+Persisting a file the LLM generates spans two services with two separate
+databases (`intelligence-service`'s `chat_events` and `workspace-service`'s
+file storage), so it can't be a single ACID transaction. This is handled as a
+**choreographed saga** over Kafka — each service reacts to events and commits
+its own local transaction, rather than a central coordinator driving the
+whole flow:
+
+1. **`intelligence-service`** — for each file-editing chat event the LLM
+   produces, it generates a `sagaId`, stores the `ChatEvent` locally with
+   status `PENDING`, and publishes a `FileStoreRequestEvent` (topic
+   `file-storage-request-event`, keyed by `project-{projectId}`).
+2. **`workspace-service`** (`FileStorageConsumer`) — consumes the request,
+   checks a `ProcessedEvent` table keyed by `sagaId` for idempotency (so a
+   redelivered message doesn't write the file twice), saves the file, records
+   the `sagaId` as processed, and publishes a `FileStoreResponseEvent` (topic
+   `file-store-responses`) reporting success or failure.
+3. **`intelligence-service`** (`IntelligenceSageResponseHandler`) — consumes
+   the response, looks up the `ChatEvent` by `sagaId`, and (if not already
+   handled) marks it `CONFIRMED` or `FAILED`.
+
+The `sagaId` is the idempotency key on both sides, which is what makes the
+flow safe to retry: Kafka's at-least-once delivery means either event could
+arrive more than once, and both consumers check "have I already handled this
+sagaId?" before acting.
 
 ## Data & infrastructure
 
