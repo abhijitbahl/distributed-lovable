@@ -5,7 +5,6 @@ generates/edits the project's files, and the result is instantly previewable and
 deployable — all running as a set of independently deployed Spring Boot
 microservices on Kubernetes.
 
-Live at **https://lovableclone.in**.
 
 ## Repositories
 
