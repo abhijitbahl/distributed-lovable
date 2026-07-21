@@ -1,8 +1,12 @@
 package com.projects.distributed_lovable.workspace_service.service.impl;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +30,7 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     @Async
+    @Retryable(retryFor = MailException.class, maxAttempts = 3, backoff = @Backoff(delay = 2000, multiplier = 2))
     public void sendProjectInviteEmail(String toEmail, String projectName, boolean hasAccount) {
         String actionUrl = hasAccount ? frontendUrl + "/login" : frontendUrl + "/signup";
         String actionLabel = hasAccount ? "Log in" : "Sign up";
@@ -40,10 +45,11 @@ public class EmailServiceImpl implements EmailService {
                 %s here to view the project: %s
                 """.formatted(projectName, actionLabel, actionUrl));
 
-        try {
-            mailSender.send(message);
-        } catch (Exception e) {
-            log.error("Failed to send invite email to {}", toEmail, e);
-        }
+        mailSender.send(message);
+    }
+
+    @Recover
+    public void logSendFailure(MailException e, String toEmail, String projectName, boolean hasAccount) {
+        log.error("Failed to send invite email to {} after retries", toEmail, e);
     }
 }
