@@ -76,9 +76,6 @@
 				<configuration>
 					<to>
 						<image>docker.io/abhijitbahl/lovable-${project.name}:${project.version}</image>
-						<tags>
-							<tag>latest</tag>
-						</tags>
 					</to>
 				</configuration>
 				<executions>
